@@ -1,9 +1,9 @@
 import express from 'express';
+import { config } from 'dotenv';
 import { verifyKeyMiddleware, InteractionType, InteractionResponseType } from 'discord-interactions';
 import { Octokit } from '@octokit/rest';
-import dotenv from 'dotenv';
 
-dotenv.config();
+config();
 
 const app = express();
 const octokit = new Octokit({ auth: process.env.GITHUB_TOKEN });
