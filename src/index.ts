@@ -64,6 +64,12 @@ async function sendMessageToThread(threadId: string, content: string) {
     );
 }
 
+// GitHub 이슈 URL에서 이슈 번호 추출
+function extractIssueNumber(issueUrl: string): string | null {
+    const match = issueUrl.match(/\/issues\/(\d+)$/);
+    return match ? match[1] : null;
+}
+
 app.post(
     '/interactions',
     verifyKeyMiddleware(process.env.DISCORD_PUBLIC_KEY!),
@@ -87,13 +93,22 @@ app.post(
                     });
 
                     try {
-                        // 메시지 → 스레드 → GitHub 이슈 → 스레드에 링크
+                        // 메시지 → 스레드 → GitHub 이슈 → 스레드에 링크 및 체크아웃 명령어
                         const messageId = await sendIssueMessage(channelId, title);
                         const threadId = await createThread(channelId, messageId, title);
                         const issueUrl = await createGithubIssue(title);
                         await sendMessageToThread(threadId, `✅ 이슈 생성 완료!\n🔗 ${issueUrl}`);
 
-                        console.log(`🧵 스레드(${threadId})에 이슈 링크 전송 완료`);
+                        // 체크아웃 명령어 생성 및 전송
+                        const issueNumber = extractIssueNumber(issueUrl);
+                        if (issueNumber) {
+                            const formattedTitle = title.replace(/ /g, '-').replace(/[^a-zA-Z0-9-_가-힣]/g, '');
+                            const branchName = `issue/#${issueNumber}-${formattedTitle}`;
+                            const checkoutCommand = `git fetch origin && git checkout ${branchName}`;
+                            await sendMessageToThread(threadId, `🔄 브랜치 체크아웃 명령어:\n\`\`\`\n${checkoutCommand}\n\`\`\``);
+                        }
+
+                        console.log(`🧵 스레드(${threadId})에 이슈 링크 및 체크아웃 명령어 전송 완료`);
                     } catch (err) {
                         console.error('❌ 처리 실패:', err);
                         await rest.post(
